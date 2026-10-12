@@ -1,0 +1,9 @@
+{
+  "name": "instituto-checkout-pix",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22"},
+  "scripts": {"start": "node --env-file-if-exists=.env server.js", "test": "node --test", "check": "node --check server.js && node --check public/checkout.js"},
+  "dependencies": {"qrcode": "1.5.4"}
+}
