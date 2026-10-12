@@ -60,7 +60,7 @@ Não há banco nem persistência de Pix no servidor. O navegador guarda apenas o
 
 **Limitação importante:** o cache desaparece ao reiniciar e não é compartilhado entre réplicas. A documentação consultada não estabelece garantia de idempotência para `externalRef`. Portanto, não há promessa de idempotência durável ou global. Use **uma única instância/processo** e não faça retry automático da criação. Em timeout/resposta ambígua, a interface bloqueia nova geração e orienta a consultar o suporte. Fechar a aba perde a recuperação local; confira a referência no painel da Black Cat antes de iniciar outro pagamento. A consulta com token continua funcionando após reinício se o segredo for mantido.
 
-## Preparação de deploy
+## Deploy
 
 Há `Dockerfile`, lockfile e CI de testes/auditoria. Este projeto precisa de um servidor Node; **GitHub Pages não executa o backend**.
 
@@ -71,7 +71,7 @@ docker run --env-file .env -p 3000:3000 instituto-checkout
 
 Use hospedagem com container/Node de longa duração, uma réplica, HTTPS e variáveis privadas. Configure `APP_ORIGIN` para o domínio final. Se houver proxy, restrinja o acesso direto ao servidor e só habilite `TRUST_PROXY` quando o proxy sobrescrever o cabeçalho. Aplique limites de tráfego também na borda: limites em memória se perdem em reinícios. Não registre corpo das requisições nem tokens no proxy/monitoramento.
 
-O container está preparado, mas não foi construído/executado nesta máquina. Nenhum deploy público foi realizado. Antes de publicar: confirmar livro/frete, configurar segredos e suporte ao comprador, testar uma transação autorizada e conferir a confirmação real no painel. Não há aprovação automática de compra baseada no navegador.
+Publicado na Vercel: https://instituito.vercel.app — checkout em https://instituito.vercel.app/checkout. Veja `docs/vercel.md` para configuração e limites do ambiente serverless. O container alternativo está preparado, mas não foi construído/executado nesta máquina. Antes de ativar pagamentos: confirmar livro/frete, configurar segredos e suporte ao comprador, testar uma transação autorizada e conferir a confirmação real no painel. Não há aprovação automática de compra baseada no navegador.
 
 ## Assets e fidelidade visual
 
