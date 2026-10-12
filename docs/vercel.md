@@ -4,7 +4,7 @@ Projeto `instituito`, conectado a `ronald-almeida/Instituito`, branch `main`.
 
 `public/` é servido como conteúdo estático. `/checkout` aponta para `checkout.html`. As funções Node `api/pix.js` e `api/pix/status.js` reutilizam o backend validado. O servidor local e o Docker continuam disponíveis.
 
-Em Settings → Environment Variables, configure `BLACKCAT_API_KEY` e `PAYMENT_TOKEN_SECRET` (segredo aleatório de pelo menos 32 caracteres) no ambiente Production e faça novo deploy. `APP_ORIGIN` pode definir o domínio final exato; quando omitido, é usado `VERCEL_PROJECT_PRODUCTION_URL`. Não coloque chaves em variáveis públicas nem envie pelo chat.
+Em Settings → Environment Variables, configure `BLACKCAT_API_KEY` e `PAYMENT_TOKEN_SECRET` (segredo aleatório de pelo menos 32 caracteres) no ambiente Production e faça novo deploy. O backend identifica o domínio efetivamente acessado e compara o cabeçalho Origin com o Host da requisição, sem variável APP_ORIGIN. A variável antiga pode ser removida da Vercel. Não coloque chaves em variáveis públicas nem envie pelo chat.
 
 Sem credenciais, a interface permanece disponível, mas geração e consulta retornam 503. Não houve transação real Black Cat na publicação inicial.
 
