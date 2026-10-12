@@ -39,5 +39,13 @@
     "https://institutobaumgarth.com/wp-content/uploads/2025/11/LOGO-BLACK-BRANCA-PNG-1024x576.png": "/assets/original/27177e4d11-LOGO-BLACK-BRANCA-PNG-1024x576.png",
     "https://institutobaumgarth.com/wp-content/uploads/2025/10/Opcao-1-Mobile-1.webp": "/assets/original/c0b2ab860d-Opcao-1-Mobile-1.webp"
   },
-  "failures": []
+  "failures": [],
+  "checkoutUploads": [
+    "/assets/checkout/banner-top.png",
+    "/assets/checkout/product-logo.png",
+    "/assets/checkout/bump-book.png",
+    "/assets/checkout/bump-course.png",
+    "/assets/checkout/banner-bottom.png",
+    "/assets/checkout/protection-logo.svg"
+  ]
 }

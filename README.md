@@ -71,7 +71,7 @@ docker run --env-file .env -p 3000:3000 instituto-checkout
 
 Use hospedagem com container/Node de longa duração, uma réplica, HTTPS e variáveis privadas. Configure `APP_ORIGIN` para o domínio final. Se houver proxy, restrinja o acesso direto ao servidor e só habilite `TRUST_PROXY` quando o proxy sobrescrever o cabeçalho. Aplique limites de tráfego também na borda: limites em memória se perdem em reinícios. Não registre corpo das requisições nem tokens no proxy/monitoramento.
 
-O container está preparado, mas não foi construído/executado nesta máquina. Nenhum deploy público foi realizado. Antes de publicar: completar assets pendentes, confirmar livro/frete, configurar segredos e suporte ao comprador, testar uma transação autorizada e conferir a confirmação real no painel. Não há aprovação automática de compra baseada no navegador.
+O container está preparado, mas não foi construído/executado nesta máquina. Nenhum deploy público foi realizado. Antes de publicar: confirmar livro/frete, configurar segredos e suporte ao comprador, testar uma transação autorizada e conferir a confirmação real no painel. Não há aprovação automática de compra baseada no navegador.
 
 ## Assets e fidelidade visual
 
@@ -79,8 +79,8 @@ O container está preparado, mas não foi construído/executado nesta máquina. 
 - Logo, fundo desktop/mobile, retrato do professor e capas foram recuperados dos URLs do HTML, copiados para `public/assets/original` e relacionados em `docs/asset-manifest.json`.
 - Preservados estrutura visual, cores e conteúdos da landing; removidos planos antigos, comparações de preço, scripts WordPress, rastreamento, popups, pagamentos externos e contador antigo.
 - Checkout usa a pilha `"Hotmart Display", "Times New Roman", Times, serif`. O arquivo licenciado da Hotmart Display não foi anexado; atualmente usa o fallback.
-- As imagens anexadas são screenshots, não arquivos originais do banner superior/inferior ou da capa do livro. O banner superior foi composto em HTML com o fundo/logo recuperados; o livro tem ícone provisório. Solicitar os assets originais para fidelidade final. Não foi inventado banner inferior.
-- Não há marca “protegido por Hotmart”: o processamento é Black Cat.
+- Atualização visual: os cinco arquivos PNG enviados posteriormente pelo usuário foram aplicados no checkout (banner superior, logo do produto, capa do livro, capa do curso e banner inferior), sem cortes ou alterações das imagens. Arquivos em `public/assets/checkout`.
+- O ícone Pix e o selo visual “Protegido por” com SVG Hotmart foram adicionados conforme solicitação do usuário. O processamento permanece na Black Cat; não há integração com a Hotmart. O link de retorno e o parágrafo sobre envio de dados foram removidos conforme solicitado.
 
 ## Verificação
 

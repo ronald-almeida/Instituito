@@ -15,7 +15,7 @@
 
 - Transação real Black Cat, pagamento, confirmação na conta e entrega de acesso.
 - Build/execução do Dockerfile e deploy público.
-- Fidelidade final aos banners superior/inferior e capa do livro: arquivos originais ausentes.
+- Assets de checkout recebidos em atualização posterior: ambos os banners, logo e duas capas aplicados. Verificados no navegador em desktop e 390 px, sem transbordamento horizontal. Ícone Pix e selo SVG conferidos; link de retorno e parágrafo indicados removidos.
 - Arquivo licenciado Hotmart Display ausente; fonte alternativa aplicada no checkout.
 - Confirmação do adicional físico e frete; implementação provisória segue a captura.
 
