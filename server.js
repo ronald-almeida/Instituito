@@ -25,7 +25,7 @@ export function createHandler(options = {}) {
   function configured() {
     if (!config.apiKey || !config.secret || config.secret.length < 32) throw new PublicError(503,'Pagamento temporariamente indisponível. Tente mais tarde.','NOT_CONFIGURED');
   }
-  // Require a same-origin POST based on the request host, without a fixed APP_ORIGIN.
+  // Require same-origin POSTs by matching the browser origin to the request host.
   function expectedOrigin(req) {
     const host = req.headers.host;
     if (typeof host !== 'string' || !host || /[\s\/\\@?#]/.test(host)) return null;
