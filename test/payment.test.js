@@ -31,11 +31,11 @@ test('signed tokens reject tampering, expiry and a different secret',()=>{
   assert.throws(()=>verifyPayment(token+'x',secret));assert.throws(()=>verifyPayment(token,'other-secret'));assert.throws(()=>verifyPayment(token,secret,Date.now()+20000));
 });
 async function fixture(t,fetcher,options={}) {
-  const app=createApp({apiKey:'test-only',secret,origin:'http://checkout.test',fetch:fetcher,...options});
+  const app=createApp({apiKey:'test-only',secret,fetch:fetcher,...options});
   await new Promise(resolve=>app.listen(0,'127.0.0.1',resolve));
   t.after(()=>new Promise(resolve=>{app.closeAllConnections();app.close(resolve);}));
   const base=`http://127.0.0.1:${app.address().port}`;
-  const post=(route,data,headers={})=>fetch(base+route,{method:'POST',headers:{Origin:'http://checkout.test','Content-Type':'application/json',...headers},body:JSON.stringify(data)});
+  const post=(route,data,headers={})=>fetch(base+route,{method:'POST',headers:{Origin:base,'Content-Type':'application/json',...headers},body:JSON.stringify(data)});
   return {base,post};
 }
 const success = (amount=39770,status='PENDING') => ({success:true,data:{transactionId:'TXN-123',amount,status,paymentMethod:'PIX',paymentData:{copyPaste:'000201010212TEST-PIX-FIXTURE-NOT-PAYABLE',expiresAt:new Date(Date.now()+86400000).toISOString()}}});
@@ -86,10 +86,10 @@ test('request size and generation rate are bounded',async t=>{
 });
 test('Vercel parsed bodies preserve validation and response contract',async()=>{
   let calls=0;
-  const handler=createHandler({origin:'https://checkout.test',apiKey:'test-only',secret,fetch:async()=>{calls++;return Response.json(success());}});
+  const handler=createHandler({trustProxy:true,apiKey:'test-only',secret,fetch:async()=>{calls++;return Response.json(success());}});
   async function invoke(body,origin='https://checkout.test') {
     let code,result;const headers={};
-    await handler({url:'/api/pix',method:'POST',headers:{origin,'content-type':'application/json'},body,socket:{remoteAddress:'127.0.0.1'}},{setHeader(k,v){headers[k]=v;},writeHead(c){code=c;},end(value){result=JSON.parse(value);}});
+    await handler({url:'/api/pix',method:'POST',headers:{host:'checkout.test','x-forwarded-proto':'https',origin,'content-type':'application/json'},body,socket:{remoteAddress:'127.0.0.1'}},{setHeader(k,v){headers[k]=v;},writeHead(c){code=c;},end(value){result=JSON.parse(value);}});
     return {code,result};
   }
   assert.equal((await invoke(input())).code,201);
@@ -97,4 +97,22 @@ test('Vercel parsed bodies preserve validation and response contract',async()=>{
   assert.equal((await invoke({padding:'a'.repeat(13000)})).code,413);
   assert.equal((await invoke(input(),'https://evil.example')).code,403);
   assert.equal(calls,1);
+});
+
+test('both Vercel domain aliases pass without APP_ORIGIN while cross-site requests fail',async()=>{
+  let calls=0;
+  const handler=createHandler({trustProxy:true,apiKey:'test-only',secret,fetch:async()=>{calls++;return Response.json(success());}});
+  async function invoke(host,origin,site='same-origin') {
+    let code;
+    await handler({url:'/api/pix',method:'POST',headers:{host,'x-forwarded-proto':'https',origin,'sec-fetch-site':site,'content-type':'application/json'},body:input(),socket:{remoteAddress:'127.0.0.1'}},{
+      setHeader(){},writeHead(status){code=status;},end(){}
+    });
+    return code;
+  }
+  for(const host of ['instituito.vercel.app','institutobaumgarth.vercel.app'])
+    assert.equal(await invoke(host,'https://'+host),201);
+  assert.equal(await invoke('institutobaumgarth.vercel.app','https://instituito.vercel.app'),403);
+  assert.equal(await invoke('institutobaumgarth.vercel.app','https://institutobaumgarth.vercel.app','cross-site'),403);
+  assert.equal(await invoke('institutobaumgarth.vercel.app',undefined),403);
+  assert.equal(calls,2);
 });
