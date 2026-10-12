@@ -20,11 +20,12 @@ Configure no servidor:
 
 | Variável | Uso |
 | --- | --- |
-| `APP_ORIGIN` | Origem exata do site, sem barra final, por exemplo `https://checkout.exemplo.com` |
 | `BLACKCAT_API_KEY` | Chave privada da Black Cat |
 | `PAYMENT_TOKEN_SECRET` | Segredo aleatório com pelo menos 32 caracteres, exclusivo deste projeto |
 | `PORT` | Porta HTTP, padrão 3000 |
 | `TRUST_PROXY` | `false` por padrão; habilitar somente atrás de um proxy confiável que sobrescreva X-Forwarded-For |
+
+O backend usa o domínio efetivo da requisição para validar solicitações do mesmo site, sem configuração de origem fixa. A Vercel detecta HTTPS automaticamente; fora dela, `TRUST_PROXY` só deve ser ativado quando há um proxy confiável sobrescrevendo os cabeçalhos encaminhados.
 
 Gere o segredo com `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`. Guarde as duas credenciais no gerenciador de segredos da hospedagem. Nunca use variáveis públicas, parâmetros de URL ou arquivos versionados para isso.
 
