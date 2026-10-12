@@ -86,7 +86,7 @@ export function createApp(options = {}) {
       const types = {'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.svg':'image/svg+xml','.woff':'font/woff','.woff2':'font/woff2','.ttf':'font/ttf'};
       if (!types[ext]) throw new PublicError(404,'Não encontrado.');
       const content = await readFile(absolute);
-      res.setHeader('Cache-Control',ext === '.html'?'no-cache':'public, max-age=3600');
+      res.setHeader('Cache-Control',['.html','.css','.js'].includes(ext)?'no-cache':'public, max-age=3600');
       res.writeHead(200,{'Content-Type':types[ext]}); res.end(req.method === 'HEAD'?undefined:content);
     } catch (error) {
       const status = error instanceof PublicError ? error.status : error.code === 'ENOENT' ? 404 : 500;

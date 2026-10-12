@@ -37,6 +37,7 @@ function renderStatus(status) {
   $('payment-status').textContent = texts[status] || 'Aguardando confirmação';
   $('pix-instructions').hidden = status !== 'PENDING' || expired;
   $('check-status').hidden = ['CANCELLED','REFUNDED'].includes(status);
+  $('check-status').textContent = status === 'PAID' ? 'Atualizar status' : 'Já paguei · verificar pagamento';
   if (status === 'PENDING' && !expired && !document.hidden) timer = setTimeout(checkStatus,10000);
 }
 async function checkStatus() {
