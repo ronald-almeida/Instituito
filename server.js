@@ -7,8 +7,7 @@ import { PublicError, buildSale, fingerprint, signPayment, verifyPayment, blackc
 
 const publicDir = fileURLToPath(new URL('./public/',import.meta.url));
 export function createHandler(options = {}) {
-  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-  const config = {origin:process.env.APP_ORIGIN || (host ? `https://${host}` : 'http://localhost:3000'),apiKey:process.env.BLACKCAT_API_KEY,secret:process.env.PAYMENT_TOKEN_SECRET,fetch:globalThis.fetch,trustProxy:process.env.TRUST_PROXY === 'true',...options};
+  const config = {apiKey:process.env.BLACKCAT_API_KEY,secret:process.env.PAYMENT_TOKEN_SECRET,fetch:globalThis.fetch,trustProxy:process.env.TRUST_PROXY === 'true',...options};
   const orders = new Map(), limits = new Map();
   function prune() {
     const now = Date.now();
@@ -26,8 +25,18 @@ export function createHandler(options = {}) {
   function configured() {
     if (!config.apiKey || !config.secret || config.secret.length < 32) throw new PublicError(503,'Pagamento temporariamente indisponível. Tente mais tarde.','NOT_CONFIGURED');
   }
+  // Require a same-origin POST based on the request host, without a fixed APP_ORIGIN.
+  function expectedOrigin(req) {
+    const host = req.headers.host;
+    if (typeof host !== 'string' || !host || /[\s\/\\@?#]/.test(host)) return null;
+    const https = process.env.VERCEL === '1' || Boolean(req.socket?.encrypted) ||
+      (config.trustProxy && req.headers['x-forwarded-proto'] === 'https');
+    try { return new URL((https ? 'https://' : 'http://') + host).origin; }
+    catch { return null; }
+  }
   async function body(req) {
-    if (req.headers.origin !== config.origin || (req.headers['sec-fetch-site'] && !['same-origin','none'].includes(req.headers['sec-fetch-site']))) throw new PublicError(403,'Origem da solicitação inválida.');
+    const origin = expectedOrigin(req);
+    if (!origin || req.headers.origin !== origin || (req.headers['sec-fetch-site'] && !['same-origin','none'].includes(req.headers['sec-fetch-site']))) throw new PublicError(403,'Origem da solicitação inválida.');
     if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) throw new PublicError(415,'Formato inválido.');
     // Vercel may parse JSON before invoking the Node handler.
     if (req.body !== undefined) {
@@ -54,7 +63,7 @@ export function createHandler(options = {}) {
     res.setHeader('X-Frame-Options','DENY');
     res.setHeader('Permissions-Policy','camera=(), microphone=(), geolocation=()');
     res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
-    if (config.origin.startsWith('https://')) res.setHeader('Strict-Transport-Security','max-age=31536000');
+    if (expectedOrigin(req)?.startsWith('https://')) res.setHeader('Strict-Transport-Security','max-age=31536000');
     try {
       const url = new URL(req.url,'http://localhost');
       if (url.pathname.startsWith('/api/')) {
