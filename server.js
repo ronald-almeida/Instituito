@@ -6,8 +6,9 @@ import QRCode from 'qrcode';
 import { PublicError, buildSale, fingerprint, signPayment, verifyPayment, blackcat } from './lib/payment.js';
 
 const publicDir = fileURLToPath(new URL('./public/',import.meta.url));
-export function createApp(options = {}) {
-  const config = {origin:process.env.APP_ORIGIN || 'http://localhost:3000',apiKey:process.env.BLACKCAT_API_KEY,secret:process.env.PAYMENT_TOKEN_SECRET,fetch:globalThis.fetch,trustProxy:process.env.TRUST_PROXY === 'true',...options};
+export function createHandler(options = {}) {
+  const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  const config = {origin:process.env.APP_ORIGIN || (host ? `https://${host}` : 'http://localhost:3000'),apiKey:process.env.BLACKCAT_API_KEY,secret:process.env.PAYMENT_TOKEN_SECRET,fetch:globalThis.fetch,trustProxy:process.env.TRUST_PROXY === 'true',...options};
   const orders = new Map(), limits = new Map();
   function prune() {
     const now = Date.now();
@@ -28,6 +29,12 @@ export function createApp(options = {}) {
   async function body(req) {
     if (req.headers.origin !== config.origin || (req.headers['sec-fetch-site'] && !['same-origin','none'].includes(req.headers['sec-fetch-site']))) throw new PublicError(403,'Origem da solicitação inválida.');
     if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) throw new PublicError(415,'Formato inválido.');
+    // Vercel may parse JSON before invoking the Node handler.
+    if (req.body !== undefined) {
+      const serialized = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+      if (Buffer.byteLength(serialized) > 12000) throw new PublicError(413,'Solicitação muito grande.');
+      try { return JSON.parse(serialized); } catch { throw new PublicError(400,'Solicitação inválida.'); }
+    }
     let input = '', size = 0;
     for await (const chunk of req) { size += chunk.length; if (size > 12000) throw new PublicError(413,'Solicitação muito grande.'); input += chunk; }
     try { return JSON.parse(input); } catch { throw new PublicError(400,'Solicitação inválida.'); }
@@ -94,7 +101,10 @@ export function createApp(options = {}) {
       send(status,{error:error instanceof PublicError?error.message:status===404?'Não encontrado.':'Não foi possível processar a solicitação.',code:error instanceof PublicError?error.code:'SERVER_ERROR'});
     }
   };
-  return http.createServer({requestTimeout:30000,headersTimeout:10000},handler);
+  return handler;
+}
+export function createApp(options = {}) {
+  return http.createServer({requestTimeout:30000,headersTimeout:10000},createHandler(options));
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.PORT || 3000);

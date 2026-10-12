@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { createApp } from '../server.js';
+import { createApp, createHandler } from '../server.js';
 import { buildSale, validDocument, signPayment, verifyPayment } from '../lib/payment.js';
 
 const secret = 'unit-test-secret-that-is-at-least-32-characters';
@@ -83,4 +83,18 @@ test('request size and generation rate are bounded',async t=>{
   assert.equal((await post('/api/pix',{padding:'a'.repeat(13000)})).status,413);
   for(let i=0;i<5;i++) assert.equal((await post('/api/pix',input())).status,201);
   assert.equal((await post('/api/pix',input())).status,429);
+});
+test('Vercel parsed bodies preserve validation and response contract',async()=>{
+  let calls=0;
+  const handler=createHandler({origin:'https://checkout.test',apiKey:'test-only',secret,fetch:async()=>{calls++;return Response.json(success());}});
+  async function invoke(body,origin='https://checkout.test') {
+    let code,result;const headers={};
+    await handler({url:'/api/pix',method:'POST',headers:{origin,'content-type':'application/json'},body,socket:{remoteAddress:'127.0.0.1'}},{setHeader(k,v){headers[k]=v;},writeHead(c){code=c;},end(value){result=JSON.parse(value);}});
+    return {code,result};
+  }
+  assert.equal((await invoke(input())).code,201);
+  assert.equal((await invoke({...input(),amount:1})).code,400);
+  assert.equal((await invoke({padding:'a'.repeat(13000)})).code,413);
+  assert.equal((await invoke(input(),'https://evil.example')).code,403);
+  assert.equal(calls,1);
 });
