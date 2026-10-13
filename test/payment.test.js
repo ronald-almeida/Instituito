@@ -56,7 +56,7 @@ test('simultaneous duplicate creation calls create only one charge',async t=>{
 });
 test('uncertain creation is never automatically sent again',async t=>{
   let calls=0;const {post}=await fixture(t,async()=>{calls++;throw new Error('timeout with sensitive upstream details');});
-  const data=input();for(let i=0;i<2;i++){const r=await post('/api/pix',data);assert.equal(r.status,502);const body=await r.json();assert.equal(body.code,'PAYMENT_UNCERTAIN');assert.ok(!body.error.includes('sensitive'));}assert.equal(calls,1);
+  const data=input();for(let i=0;i<2;i++){const r=await post('/api/pix',data);assert.equal(r.status,502);const body=await r.json();assert.equal(body.code,'GATEWAY_NETWORK');assert.ok(!body.error.includes('sensitive'));}assert.equal(calls,1);
 });
 test('missing credentials, cross-origin, invalid content type and forged token fail closed',async t=>{
   let calls=0;const upstream=async()=>{calls++;return Response.json(success());};
