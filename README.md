@@ -59,7 +59,7 @@ Documentação consultada: https://docs.blackcatoficial.com/
 
 Não há banco nem persistência de Pix no servidor. O navegador guarda apenas o Pix e um token de consulta no `sessionStorage` da aba, nunca os campos de identificação. No servidor, um cache volátil limitado guarda a promessa/resultado da criação e o hash do pedido por até 48 horas, para impedir duplicidade concorrente; não guarda os dados pessoais enviados ao provedor. Não há logs de payload, documentos ou credenciais.
 
-**Limitação importante:** o cache desaparece ao reiniciar e não é compartilhado entre réplicas. A documentação consultada não estabelece garantia de idempotência para `externalRef`. Portanto, não há promessa de idempotência durável ou global. Use **uma única instância/processo** e não faça retry automático da criação. Em timeout/resposta ambígua, a interface bloqueia nova geração e orienta a consultar o suporte. Fechar a aba perde a recuperação local; confira a referência no painel da Black Cat antes de iniciar outro pagamento. A consulta com token continua funcionando após reinício se o segredo for mantido.
+**Limitação importante:** o cache desaparece ao reiniciar e não é compartilhado entre réplicas. A documentação consultada não estabelece garantia de idempotência para `externalRef`. Portanto, não há promessa de idempotência durável ou global. Use **uma única instância/processo** e não faça retry automático da criação. Em timeout/resposta ambígua, o checkout libera o formulário para uma nova tentativa manual, com alerta de que um Pix anterior pode continuar válido; a tentativa anterior não é reenviada automaticamente. Após um Pix gerado, o comprador pode escolher **Fazer nova compra / Gerar outro Pix**. O navegador gera um novo `requestId` por pedido e remove os bloqueios antigos do `sessionStorage`. A consulta do Pix anterior só é recuperável nesta aba enquanto ele estiver armazenado; confira a referência no painel da Black Cat antes de pagar novamente. A consulta com token continua funcionando após reinício se o segredo for mantido.
 
 ## Deploy
 
@@ -70,7 +70,7 @@ docker build -t instituto-checkout .
 docker run --env-file .env -p 3000:3000 instituto-checkout
 ```
 
-Use hospedagem com container/Node de longa duração, uma réplica, HTTPS e variáveis privadas. Configure `APP_ORIGIN` para o domínio final. Se houver proxy, restrinja o acesso direto ao servidor e só habilite `TRUST_PROXY` quando o proxy sobrescrever o cabeçalho. Aplique limites de tráfego também na borda: limites em memória se perdem em reinícios. Não registre corpo das requisições nem tokens no proxy/monitoramento.
+Use hospedagem com container/Node de longa duração, uma réplica, HTTPS e variáveis privadas. O domínio é identificado automaticamente pelo servidor. Se houver proxy, restrinja o acesso direto ao servidor e só habilite `TRUST_PROXY` quando o proxy sobrescrever o cabeçalho. Aplique limites de tráfego também na borda: limites em memória se perdem em reinícios. Não registre corpo das requisições nem tokens no proxy/monitoramento.
 
 Publicado na Vercel: https://instituito.vercel.app — checkout em https://instituito.vercel.app/checkout. Veja `docs/vercel.md` para configuração e limites do ambiente serverless. O container alternativo está preparado, mas não foi construído/executado nesta máquina. Antes de ativar pagamentos: confirmar livro/frete, configurar segredos e suporte ao comprador, testar uma transação autorizada e conferir a confirmação real no painel. Não há aprovação automática de compra baseada no navegador.
 
