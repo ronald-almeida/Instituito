@@ -1,7 +1,7 @@
 const $ = id => document.getElementById(id);
 const money = cents => (cents / 100).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const form = $('checkout-form');
-let payment = null, timer, checking = false, generating = false;
+let payment = null, timer, checkingPayment = null, generating = false;
 const storage = {get(k){try{return sessionStorage.getItem(k);}catch{return null;}},set(k,v){try{sessionStorage.setItem(k,v);}catch{}},remove(k){try{sessionStorage.removeItem(k);}catch{}}};
 function updateTotal() {
   $('total').textContent = money(39770 + ($('book').checked ? 5000 : 0) + ($('course').checked ? 19700 : 0));
@@ -25,10 +25,9 @@ function showPayment(data, restoring = false) {
   $('copy-paste').value = data.copyPaste;
   $('expires').textContent = `Válido até ${new Date(data.expiresAt).toLocaleString('pt-BR')}`;
   $('order-ref').textContent = `Referência: ${data.transactionId}`;
-  if (restoring) {
-    $('payment-status').textContent = 'Verificando pagamento…';
-    $('pix-instructions').hidden = true;
-  } else renderStatus(data.status);
+  errorAt('status-error','');
+  renderStatus(data.status);
+  if (restoring) $('payment-status').textContent = 'Verificando pagamento…';
 }
 function renderStatus(status) {
   clearTimeout(timer);
@@ -41,26 +40,51 @@ function renderStatus(status) {
   if (status === 'PENDING' && !expired && !document.hidden) timer = setTimeout(checkStatus,10000);
 }
 async function checkStatus() {
-  if (!payment || checking) return;
-  checking = true; $('check-status').disabled = true;
+  const current = payment;
+  if (!current || checkingPayment === current) return;
+  checkingPayment = current; $('check-status').disabled = true;
   try {
-    const result = await api('/api/pix/status',{token:payment.token});
-    payment.status = result.status; storage.set('pix-payment',JSON.stringify(payment));
+    const result = await api('/api/pix/status',{token:current.token});
+    // A previous status request must not update a newer purchase.
+    if (payment !== current) return;
+    current.status = result.status; storage.set('pix-payment',JSON.stringify(current));
     errorAt('status-error',''); renderStatus(result.status);
   } catch (error) {
+    if (payment !== current) return;
     errorAt('status-error',error.message || 'Não foi possível consultar. Use o botão para tentar novamente.');
     clearTimeout(timer);
-    // A failed consultation never means the payment failed. Preserve the QR and reference.
-    if (Date.parse(payment.expiresAt) <= Date.now()) $('pix-instructions').hidden = true;
-  } finally { checking = false; $('check-status').disabled = false; }
+    if (Date.parse(current.expiresAt) <= Date.now()) $('pix-instructions').hidden = true;
+  } finally {
+    if (checkingPayment === current) checkingPayment = null;
+    if (payment === current) $('check-status').disabled = false;
+  }
+}
+function startNewPurchase() {
+  if (generating) return;
+  clearTimeout(timer);
+  payment = null;
+  storage.remove('pix-payment');
+  storage.remove('pix-request-id');
+  storage.remove('pix-attempt-pending');
+  $('payment').hidden = true;
+  $('payment').setAttribute('aria-hidden','true');
+  $('check-status').disabled = false;
+  $('purchase-fields').disabled = false;
+  $('generate').disabled = false;
+  $('generate').hidden = false;
+  form.hidden = false;
+  errorAt('form-error','');
+  errorAt('status-error','');
+  updateTotal();
+  form.scrollIntoView({behavior:'smooth',block:'start'});
 }
 form.addEventListener('submit',async event => {
   event.preventDefault(); if (generating || payment) return;
   $('emailConfirmation').setCustomValidity('');
   if ($('email').value.trim().toLowerCase() !== $('emailConfirmation').value.trim().toLowerCase()) { $('emailConfirmation').setCustomValidity('Os e-mails não coincidem.'); $('emailConfirmation').reportValidity(); return; }
   generating = true; $('generate').disabled = true; $('generate').textContent = 'Gerando Pix…'; errorAt('form-error','');
-  const requestId = storage.get('pix-request-id') || crypto.randomUUID();
-  storage.set('pix-request-id',requestId);
+  // Every deliberate submission is a new order; no stale request ID can lock the checkout.
+  const requestId = crypto.randomUUID();
   const data = new FormData(form);
   const customer = Object.fromEntries(['name','email','emailConfirmation','document','phone'].map(k => [k,data.get(k)]));
   const payload = {requestId,customer,bumps:['book','course'].filter(k=>$(k).checked)};
@@ -68,25 +92,37 @@ form.addEventListener('submit',async event => {
   // Lock the form while creating so its visible total cannot diverge from the charge.
   $('purchase-fields').disabled = true;
   try {
-    storage.set('pix-attempt-pending','true');
     const result = await api('/api/pix',payload);
-    storage.remove('pix-attempt-pending');
     storage.set('pix-payment',JSON.stringify(result));
     showPayment(result); $('payment').focus(); checkStatus();
   } catch(error) {
-    const uncertain = !error.code || ['PAYMENT_UNCERTAIN','ORDER_CONFLICT','SERVER_ERROR'].includes(error.code);
-    errorAt('form-error',uncertain?'Não foi possível confirmar a geração. Para evitar pagamento duplicado, não gere outro Pix. Consulte o suporte e informe a referência: '+requestId:error.message);
-    if (!uncertain) { storage.remove('pix-attempt-pending'); $('purchase-fields').disabled = false; updateTotal(); }
+    const uncertain = !error.code || ['PAYMENT_UNCERTAIN','SERVER_ERROR'].includes(error.code);
+    const notice = 'Você pode tentar novamente. Se a tentativa anterior tiver criado um Pix, ela poderá continuar válida; confira com o suporte antes de pagar para evitar dois pagamentos. Referência: ' + requestId;
+    errorAt('form-error',uncertain?'Não foi possível confirmar a geração do Pix. ' + notice:error.message);
+    // Failures must never permanently disable the form or create a persistent lock.
+    $('purchase-fields').disabled = false;
+    updateTotal();
     $('form-error').focus();
   } finally { generating = false; $('generate').disabled = false; $('generate').textContent = 'Gerar Pix'; }
 });
 $('emailConfirmation').addEventListener('input',()=>$('emailConfirmation').setCustomValidity(''));
 $('copy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(payment.copyPaste);$('copy').textContent='Código copiado';}catch{$('copy-paste').focus();$('copy-paste').select();$('copy').textContent='Selecione e copie o código acima';}});
 $('check-status').addEventListener('click',checkStatus);
+$('new-purchase').addEventListener('click',startNewPurchase);
 document.addEventListener('visibilitychange',()=>{clearTimeout(timer);if(!document.hidden && payment)checkStatus();});
 updateTotal();
+// Clear locks left by earlier checkout versions.
+storage.remove('pix-attempt-pending');
+storage.remove('pix-request-id');
 try {
   const saved = JSON.parse(storage.get('pix-payment') || 'null');
-  if (saved && typeof saved.token === 'string' && Number.isInteger(saved.amount) && Number.isFinite(Date.parse(saved.expiresAt))) { showPayment(saved,true); checkStatus(); }
-  else if (storage.get('pix-attempt-pending')) { $('purchase-fields').disabled = true; errorAt('form-error','Uma tentativa de pagamento está sem confirmação. Consulte o suporte antes de gerar outro Pix. Referência: '+storage.get('pix-request-id')); }
-} catch { errorAt('form-error','Não foi possível recuperar o pagamento nesta aba. Consulte o suporte antes de gerar outro Pix.'); $('purchase-fields').disabled = true; }
+  if (saved && typeof saved.token === 'string' && Number.isInteger(saved.amount) && Number.isFinite(Date.parse(saved.expiresAt))) {
+    showPayment(saved,true);
+    checkStatus();
+  } else {
+    storage.remove('pix-payment');
+  }
+} catch {
+  storage.remove('pix-payment');
+  errorAt('form-error','Não foi possível recuperar o Pix anterior. Você pode iniciar uma nova compra.');
+}
