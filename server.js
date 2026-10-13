@@ -52,7 +52,18 @@ export function createHandler(options = {}) {
     const data = await blackcat('/sales/create-sale',config,sale);
     const code = data.paymentData?.copyPaste || data.paymentData?.qrCode;
     const expires = Date.parse(data.paymentData?.expiresAt);
-    if (!/^[A-Za-z0-9_-]{1,128}$/.test(data.transactionId || '') || data.amount !== sale.amount || !['PENDING','PAID'].includes(data.status) || String(data.paymentMethod).toLowerCase() !== 'pix' || typeof code !== 'string' || code.length > 4000 || !code.startsWith('000201') || !Number.isFinite(expires) || expires <= Date.now()) throw new PublicError(502,'O serviço retornou dados incompletos. Consulte o suporte antes de tentar novamente.','PAYMENT_UNCERTAIN');
+    const invalidField =
+      !/^[A-Za-z0-9_-]{1,128}$/.test(data.transactionId || '') ? 'TRANSACTION_ID' :
+      data.amount !== sale.amount ? 'AMOUNT_MISMATCH' :
+      !['PENDING','PAID'].includes(data.status) ? 'STATUS' :
+      String(data.paymentMethod).toLowerCase() !== 'pix' ? 'PAYMENT_METHOD' :
+      typeof code !== 'string' || code.length > 4000 || !code.startsWith('000201') ? 'PIX_CODE' :
+      !Number.isFinite(expires) || expires <= Date.now() ? 'PIX_EXPIRATION' : null;
+    if (invalidField) {
+      // The charge might exist even if the response cannot be displayed as a Pix.
+      console.warn('BLACKCAT_DIAGNOSTIC',{operation:'create',event:'INVALID_SUCCESS_RESPONSE',field:invalidField});
+      throw new PublicError(502,'A Black Cat respondeu, mas não retornou todos os dados válidos do Pix. Confira a venda no painel.','PAYMENT_UNCERTAIN');
+    }
     const token = signPayment({id:data.transactionId,amount:sale.amount,exp:expires+86400000},config.secret);
     return {transactionId:data.transactionId,amount:sale.amount,status:data.status,copyPaste:code,qrCode:await QRCode.toDataURL(code,{errorCorrectionLevel:'M',width:320,margin:4}),expiresAt:new Date(expires).toISOString(),token};
   }
