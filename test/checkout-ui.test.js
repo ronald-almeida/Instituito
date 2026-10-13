@@ -91,7 +91,8 @@ test('an uncertain Pix response allows manual retry with a fresh request ID',asy
   assert.equal(f.element('purchase-fields').disabled,false);
   assert.equal(f.element('generate').disabled,false);
   assert.equal(f.element('checkout-form').hidden,false);
-  assert.match(f.element('form-error').textContent,/pode tentar novamente/i);
+  assert.match(f.element('form-error').textContent,/Código: PAYMENT_UNCERTAIN/);
+  assert.match(f.element('form-error').textContent,/Referência:/);
   await f.submit();
   assert.equal(f.requests.length,2);
   assert.notEqual(f.requests[0].requestId,f.requests[1].requestId);
