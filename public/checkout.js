@@ -96,9 +96,13 @@ form.addEventListener('submit',async event => {
     storage.set('pix-payment',JSON.stringify(result));
     showPayment(result); $('payment').focus(); checkStatus();
   } catch(error) {
-    const uncertain = !error.code || ['PAYMENT_UNCERTAIN','SERVER_ERROR'].includes(error.code);
-    const notice = 'Você pode tentar novamente. Se a tentativa anterior tiver criado um Pix, ela poderá continuar válida; confira com o suporte antes de pagar para evitar dois pagamentos. Referência: ' + requestId;
-    errorAt('form-error',uncertain?'Não foi possível confirmar a geração do Pix. ' + notice:error.message);
+    const uncertain = !error.code || ['PAYMENT_UNCERTAIN','SERVER_ERROR','GATEWAY_TIMEOUT','GATEWAY_NETWORK'].includes(error.code);
+    const detail = error.code ? error.message : 'O checkout não recebeu uma resposta válida do servidor.';
+    const diagnostic = error.code ? ' Código: ' + error.code + '.' : '';
+    const precaution = uncertain
+      ? ' Se uma cobrança foi criada, ela pode continuar válida. Antes de pagar outro Pix, confira a referência no painel da Black Cat.'
+      : '';
+    errorAt('form-error',detail + diagnostic + precaution + ' Referência: ' + requestId);
     // Failures must never permanently disable the form or create a persistent lock.
     $('purchase-fields').disabled = false;
     updateTotal();
