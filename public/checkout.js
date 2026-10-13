@@ -67,7 +67,7 @@ function startNewPurchase() {
   storage.remove('pix-request-id');
   storage.remove('pix-attempt-pending');
   $('payment').hidden = true;
-  $('payment').setAttribute('aria-hidden','true');
+
   $('check-status').disabled = false;
   $('purchase-fields').disabled = false;
   $('generate').disabled = false;
