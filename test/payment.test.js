@@ -164,3 +164,14 @@ test('a successful but incomplete Pix response cannot be offered for payment',as
   const body=await response.json();
   assert.equal(body.code,'PAYMENT_UNCERTAIN');
 });
+
+test('non-JSON Black Cat 401 still identifies an authentication failure',async t=>{
+  const {post}=await fixture(t,async()=>({
+    status:401,ok:false,json:async()=>{throw Error('provider secret leaked in HTML');}
+  }));
+  const response=await post('/api/pix',input());
+  assert.equal(response.status,503);
+  const body=await response.json();
+  assert.equal(body.code,'GATEWAY_AUTH');
+  assert.ok(!JSON.stringify(body).includes('provider secret'));
+});
