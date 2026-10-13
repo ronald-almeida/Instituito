@@ -61,7 +61,7 @@ export function createHandler(options = {}) {
       !Number.isFinite(expires) || expires <= Date.now() ? 'PIX_EXPIRATION' : null;
     if (invalidField) {
       // The charge might exist even if the response cannot be displayed as a Pix.
-      console.warn('BLACKCAT_DIAGNOSTIC',{operation:'create',event:'INVALID_SUCCESS_RESPONSE',field:invalidField});
+      console.warn('BLACKCAT_DIAGNOSTIC',{operation:'create',event:'INVALID_SUCCESS_RESPONSE',field:invalidField,reference:sale.externalRef});
       throw new PublicError(502,'A Black Cat respondeu, mas não retornou todos os dados válidos do Pix. Confira a venda no painel.','PAYMENT_UNCERTAIN');
     }
     const token = signPayment({id:data.transactionId,amount:sale.amount,exp:expires+86400000},config.secret);
