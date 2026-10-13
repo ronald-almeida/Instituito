@@ -116,3 +116,51 @@ test('both Vercel domain aliases pass without APP_ORIGIN while cross-site reques
   assert.equal(await invoke('institutobaumgarth.vercel.app',undefined),403);
   assert.equal(calls,2);
 });
+
+test('Black Cat authorization and validation errors show actionable safe codes',async t=>{
+  for (const [http,code,status,text] of [
+    [401,'GATEWAY_AUTH',503,'chave da API'],
+    [403,'GATEWAY_FORBIDDEN',503,'autorizada'],
+    [400,'GATEWAY_VALIDATION',502,'HTTP 400'],
+    [422,'GATEWAY_VALIDATION',502,'HTTP 422'],
+    [429,'GATEWAY_RATE_LIMIT',503,'limitou']
+  ]) {
+    const {post}=await fixture(t,async()=>Response.json({
+      success:false,message:'secret-provider-details-MUST-NOT-LEAK',
+      error:'private-diagnostic-MUST-NOT-LEAK'
+    },{status:http}));
+    const response=await post('/api/pix',input());
+    const result=await response.json();
+    assert.equal(response.status,status);
+    assert.equal(result.code,code);
+    assert.match(result.error,new RegExp(text,'i'));
+    assert.ok(!JSON.stringify(result).includes('MUST-NOT-LEAK'));
+  }
+});
+
+test('Black Cat timeout or unexpected response is marked as uncertain',async t=>{
+  const timeout=await fixture(t,async()=>{
+    const e=new Error('private-internal-server-address');
+    e.name='TimeoutError';throw e;
+  });
+  const r1=await timeout.post('/api/pix',input());const b1=await r1.json();
+  assert.equal(r1.status,502);assert.equal(b1.code,'GATEWAY_TIMEOUT');
+  assert.ok(!JSON.stringify(b1).includes('private-internal-server-address'));
+
+  const invalidJson=await fixture(t,async()=>({
+    status:200,ok:true,json:async()=>{throw Error('upstream body contains secrets');}
+  }));
+  const r2=await invalidJson.post('/api/pix',input());const b2=await r2.json();
+  assert.equal(r2.status,502);assert.equal(b2.code,'PAYMENT_UNCERTAIN');
+  assert.ok(!JSON.stringify(b2).includes('secrets'));
+});
+
+test('a successful but incomplete Pix response cannot be offered for payment',async t=>{
+  const {post}=await fixture(t,async()=>Response.json({
+    success:true,data:{...success().data,paymentData:{expiresAt:new Date(Date.now()+86400000).toISOString()}}
+  }));
+  const response=await post('/api/pix',input());
+  assert.equal(response.status,502);
+  const body=await response.json();
+  assert.equal(body.code,'PAYMENT_UNCERTAIN');
+});
